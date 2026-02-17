@@ -24,6 +24,24 @@ st.markdown(f"""
     .emoji-selected {{ background: {accent} !important; color: white; }}
     .categoria {{ color: {accent}; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }}
     .recipe-card {{ background-color: {"#1a1a2e" if user == "Azul" else "#ffffff"}; padding: 20px; border-radius: 15px; border-left: 5px solid {accent}; margin-bottom: 20px; }}
+    .pinterest-card {{ 
+        background: {"#1a1a2e" if user == "Azul" else "#ffffff"};
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        transition: transform 0.3s, box-shadow 0.3s;
+    }}
+    .pinterest-card:hover {{ 
+        transform: translateY(-10px); 
+        box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    }}
+    .card-img {{ width: 100%; height: 220px; object-fit: cover; border-radius: 20px 20px 0 0; }}
+    .card-overlay {{ padding: 15px; background: linear-gradient(180deg, transparent 0%, {"#1a1a2e" if user == "Azul" else "#ffffff"} 100%); }}
+    .card-overlay h4 {{ margin: 0; font-size: 1rem; color: {accent}; margin-bottom: 8px; }}
+    .nutri-badges {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+    .badge {{ background: {accent}30; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem; color: {"white" if user == "Azul" else "#333"}; }}
+    .stButton>button {{ background-color: {accent} !important; color: white !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -88,18 +106,47 @@ if st.button("🔍 Buscar Recetas", use_container_width=True):
                 recipes = res.get("results", [])
                 if recipes:
                     st.success(f"¡{len(recipes)} recetas encontradas!")
-                    for r in recipes:
-                        nutrients = r.get('nutrition', {}).get('nutrients', [])
-                        cals = next((n['amount'] for n in nutrients if n['name'] == 'Calories'), 0)
-                        prot = next((n['amount'] for n in nutrients if n['name'] == 'Protein'), 0)
-                        
-                        st.markdown(f"""
-                        <div class="recipe-card">
-                            <h3>{r['title']}</h3>
-                            <img src="{r['image']}" style="width:100%; border-radius:10px;">
-                            <p>🔥 {cals:.0f} kcal | 💪 {prot:.0f}g proteína | ⏱️ {r['readyInMinutes']} min</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    
+                    # Playlists por mood
+                    mood_playlists = {
+                        "Fit/Gym 💪": ("https://open.spotify.com/playlist/7aIhHMnSsVFkVLO6NqjC2b", "Motivational Anime"),
+                        "Romántica 💕": ("https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4", "Bachatas"),
+                        "Rápida ⚡": ("https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK", "City Pop"),
+                        "Relax 🌿": ("https://open.spotify.com/playlist/0J8eyNXyad9pdcM9igjtrU", "Chill Vibes")
+                    }
+                    playlist_url, playlist_name = mood_playlists.get(mood, mood_playlists["Fit/Gym 💪"])
+                    
+                    st.subheader("🍽️ Tarjetas Pinterest para esta búsqueda:")
+                    
+                    cols = st.columns(3)
+                    for idx, r in enumerate(recipes):
+                        with cols[idx % 3]:
+                            nutrients = r.get('nutrition', {}).get('nutrients', [])
+                            cals = next((n['amount'] for n in nutrients if n['name'] == 'Calories'), 0)
+                            fat = next((n['amount'] for n in nutrients if n['name'] == 'Fat'), 0)
+                            prot = next((n['amount'] for n in nutrients if n['name'] == 'Protein'), 0)
+                            
+                            st.markdown(f"""
+                            <div class="pinterest-card">
+                                <div class="card-front">
+                                    <img src="{r['image']}" class="card-img" alt="{r['title']}">
+                                    <div class="card-overlay">
+                                        <h4>{r['title'][:25]}{'...' if len(r['title']) > 25 else ''}</h4>
+                                        <div class="nutri-badges">
+                                            <span class="badge">🔥 {cals:.0f}</span>
+                                            <span class="badge">💪 {prot:.0f}g</span>
+                                            <span class="badge">⏱️ {r['readyInMinutes']}m</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            st.link_button(f"🎵 {playlist_name}", playlist_url, use_container_width=True)
+                            st.button("❤️ Guardar", key=f"save_{r['id']}", use_container_width=True)
+                            
+                            st.caption(f"🥑 {fat:.0f}g grasa")
+                            st.divider()
                 else:
                     st.info("No encontré recetas con eso. Intenta otros ingredientes.")
         except:
