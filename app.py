@@ -2,172 +2,108 @@ import streamlit as st
 import requests
 from datetime import datetime
 
-# --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Cloud.Cat Fitness & Music", page_icon="☁️", layout="wide")
+st.set_page_config(page_title="Recetario Azul", page_icon="👨‍🍳", layout="wide")
 
-# --- SELECCIÓN DE USUARIO ---
-st.sidebar.header("👤 ¿Quién está cocinando?")
+# --- USUARIO ---
+st.sidebar.header("👤 ¿Quién cocina?")
 user = st.sidebar.radio("", ["Azul", "Alice"], horizontal=True)
 
-# --- TEMAS POR USUARIO ---
 if user == "Azul":
-    # Tema oscuro azul neón
-    bg_color = "#0a0a1a"
-    text_color = "#ffffff"
-    accent = "#00d4ff"
-    accent_hover = "#00ffff"
-    card_bg = "#1a1a2e"
-    user_icon = "🎮"
-    welcome = "¡Hola Azul! ¿Qué se te antoja hoy?"
+    bg_color, text_color, accent = "#0a0a1a", "#ffffff", "#00d4ff"
+    welcome = "¡Hey Chef Azul! ¿Qué cocinamos hoy?"
 else:
-    # Tema claro rosa pastel
-    bg_color = "#fff5f5"
-    text_color = "#333333"
-    accent = "#ff6b81"
-    accent_hover = "#ff8fa3"
-    card_bg = "#ffffff"
-    user_icon = "💕"
-    welcome = "¡Hola Alice! Vamos a cocinar algo delicioso"
+    bg_color, text_color, accent = "#fff5f5", "#333333", "#ff6b81"
+    welcome = "¡Hola Alice! Vamos a crear algo delicioso 💕"
 
-# --- CSS DINÁMICO ---
 st.markdown(f"""
     <style>
-    .stApp {{
-        background-color: {bg_color};
-        color: {text_color};
-    }}
-    .main {{
-        background: linear-gradient(135deg, {bg_color} 0%, {card_bg} 100%);
-    }}
-    .stButton>button {{
-        background-color: {accent};
-        color: white;
-        border-radius: 20px;
-        padding: 10px 24px;
-        border: none;
-        font-weight: bold;
-    }}
-    .stButton>button:hover {{
-        background-color: {accent_hover};
-        transform: scale(1.05);
-        transition: all 0.3s;
-    }}
-    .user-badge {{
-        background-color: {accent};
-        color: white;
-        padding: 8px 20px;
-        border-radius: 25px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-    }}
-    .recipe-card {{
-        background-color: {card_bg};
-        padding: 20px;
-        border-radius: 15px;
-        border-left: 5px solid {accent};
-        margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }}
-    h1, h2, h3 {{
-        color: {accent} !important;
-    }}
-    .stTextArea>div>div>textarea {{
-        background-color: {card_bg};
-        color: {text_color};
-        border: 2px solid {accent};
-        border-radius: 10px;
-    }}
+    .stApp {{ background-color: {bg_color}; color: {text_color}; }}
+    .emoji-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }}
+    .emoji-btn {{ font-size: 2.5rem; cursor: pointer; padding: 10px; border-radius: 15px; background: {accent}20; border: 2px solid {accent}; transition: all 0.2s; }}
+    .emoji-btn:hover {{ transform: scale(1.1); background: {accent}40; }}
+    .emoji-selected {{ background: {accent} !important; color: white; }}
+    .categoria {{ color: {accent}; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }}
+    .recipe-card {{ background-color: {"#1a1a2e" if user == "Azul" else "#ffffff"}; padding: 20px; border-radius: 15px; border-left: 5px solid {accent}; margin-bottom: 20px; }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- HEADER ---
-st.sidebar.markdown(f"<div class='user-badge'>{user_icon} Modo {user}</div>", unsafe_allow_html=True)
-st.title(f"☁️🐈 Cloud.Cat - Cocina {user}")
-st.markdown(f"### *{welcome}*")
+st.title(f"👨‍🍳 Recetario Azul - {user}")
+st.markdown(f"### {welcome}")
+st.markdown("---")
 
-# --- TABS ---
-tab1, tab2 = st.tabs(["🥗 Recetas", "🎵 Música"])
+# --- INGREDIENTES EMOJI ---
+st.subheader("🛒 Elige tus ingredientes:")
 
-with tab1:
-    st.markdown("---")
-    
-    # API Key
-    try:
-        SPOON_KEY = st.secrets["SPOONACULAR_API_KEY"]
-    except:
-        SPOON_KEY = None
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.header("🛒 Ingredientes")
-        ingredients = st.text_area(
-            "¿Qué hay en el refri?",
-            placeholder="Ej: pollo, brócoli, espinaca",
-            help="Escribe ingredientes separados por coma"
-        )
-        
-        st.header("🎯 Vibe")
-        mood = st.selectbox(
-            "¿Qué ambiente?",
-            ["Fitness/Motivado", "Relajado/Zen", "Cena Romántica", "Gaming/Rápido"]
-        )
-        
-        if st.button("🔍 Buscar Recetas Fit", use_container_width=True):
-            if ingredients and SPOON_KEY:
-                with st.spinner("Cloud.Cat está cocinando..."):
-                    url = "https://api.spoonacular.com/recipes/complexSearch"
-                    params = {
-                        "apiKey": SPOON_KEY,
-                        "query": ingredients,
-                        "number": 3,
-                        "diet": "low-carb",
-                        "addRecipeNutrition": "true"
-                    }
-                    res = requests.get(url, params=params)
-                    recipes = res.json().get("results", [])
-                    
-                    if recipes:
-                        for recipe in recipes:
-                            with col2:
-                                nutrients = recipe.get('nutrition', {}).get('nutrients', [])
-                                cals = next((n['amount'] for n in nutrients if n['name'] == 'Calories'), 0)
-                                protein = next((n['amount'] for n in nutrients if n['name'] == 'Protein'), 0)
-                                
-                                st.markdown(f"""
-                                <div class="recipe-card">
-                                    <h3>{recipe['title']}</h3>
-                                    <img src="{recipe['image']}" style="width:100%; border-radius:10px;">
-                                    <p>🔥 <b>{cals:.0f}</b> kcal | 💪 <b>{protein:.0f}</b>g proteína | ⏱️ {recipe['readyInMinutes']} min</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                    else:
-                        st.info("No encontré recetas. Intenta otros ingredientes.")
-            else:
-                st.warning("Escribe ingredientes primero")
+if "selected_ingredientes" not in st.session_state:
+    st.session_state.selected_ingredientes = []
 
-with tab2:
-    st.markdown("---")
-    st.header("🎵 Playlist Recomendada")
+ingredientes = {
+    "🍗 Proteínas": ["🍗", "🥩", "🐟", "🥚", "🦐", "🍖"],
+    "🥦 Verduras": ["🥦", "🥬", "🥕", "🌽", "🧅", "🧄", "🍄", "🌶️"],
+    "🍚 Carbohidratos": ["🍚", "🍝", "🥔", "🌾", "🍞", "🥯"],
+    "🥑 Frescos": ["🥑", "🍋", "🍅", "🥒", "🥗", "🍎"]
+}
+
+cols = st.columns(4)
+col_idx = 0
+
+for categoria, emojis in ingredientes.items():
+    with cols[col_idx % 4]:
+        st.markdown(f"<p class='categoria'>{categoria}</p>", unsafe_allow_html=True)
+        for emoji in emojis:
+            if st.button(emoji, key=f"emoji_{emoji}", use_container_width=True):
+                if emoji not in st.session_state.selected_ingredientes:
+                    st.session_state.selected_ingredientes.append(emoji)
+                    st.rerun()
+    col_idx += 1
+
+# --- MOSTRAR SELECCIONADOS ---
+if st.session_state.selected_ingredientes:
+    st.markdown(f"**Seleccionados:** {' '.join(st.session_state.selected_ingredientes)}")
+    if st.button("❌ Limpiar selección", key="clear"):
+        st.session_state.selected_ingredientes = []
+        st.rerun()
+
+# --- TEXTO EXTRA ---
+st.markdown("---")
+st.subheader("⌨️ ¿Algo más?")
+st.caption("Escribe ingredientes adicionales separados por coma:")
+texto_extra = st.text_input("", placeholder="Ej: quinoa, leche de almendras...")
+
+# --- BUSCAR ---
+mood = st.selectbox("🎯 ¿Qué vibe?", ["Fit/Gym 💪", "Romántica 💕", "Rápida ⚡", "Relax 🌿"])
+
+if st.button("🔍 Buscar Recetas", use_container_width=True):
+    emojis_text = " ".join(st.session_state.selected_ingredientes) if st.session_state.selected_ingredientes else ""
+    busqueda = f"{emojis_text} {texto_extra}".strip()
     
-    music_mood = st.selectbox(
-        "¿Para qué momento?",
-        ["Entrenamiento 💪", "Cocinando 🥘", "Cita romántica 💕", "Relajándose 🌙", "Gaming 🎮"]
-    )
-    
-    playlists = {
-        "Entrenamiento 💪": ("https://open.spotify.com/playlist/7aIhHMnSsVFkVLO6NqjC2b", "Motivational Anime"),
-        "Cocinando 🥘": ("https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK", "Japanese City Pop"),
-        "Cita romántica 💕": ("https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4", "Bachatas Aventura"),
-        "Relajándose 🌙": ("https://open.spotify.com/playlist/0J8eyNXyad9pdcM9igjtrU", "Vibes Stay"),
-        "Gaming 🎮": ("https://open.spotify.com/playlist/5ase74F6CHi5XuncSIewvr", "Freedom Radio")
-    }
-    
-    if st.button("🎧 Escuchar Playlist", use_container_width=True):
-        url, name = playlists[music_mood]
-        st.markdown(f"<h3 style='color:{accent}'>🎵 {name}</h3>", unsafe_allow_html=True)
-        st.link_button("Abrir en Spotify", url)
+    if busqueda:
+        try:
+            SPOON_KEY = st.secrets["SPOONACULAR_API_KEY"]
+            with st.spinner("Buscando..."):
+                res = requests.get("https://api.spoonacular.com/recipes/complexSearch", 
+                    params={"apiKey": SPOON_KEY, "query": busqueda, "number": 3, 
+                           "diet": "low-carb", "addRecipeNutrition": "true"}).json()
+                
+                recipes = res.get("results", [])
+                if recipes:
+                    st.success(f"¡{len(recipes)} recetas encontradas!")
+                    for r in recipes:
+                        nutrients = r.get('nutrition', {}).get('nutrients', [])
+                        cals = next((n['amount'] for n in nutrients if n['name'] == 'Calories'), 0)
+                        prot = next((n['amount'] for n in nutrients if n['name'] == 'Protein'), 0)
+                        
+                        st.markdown(f"""
+                        <div class="recipe-card">
+                            <h3>{r['title']}</h3>
+                            <img src="{r['image']}" style="width:100%; border-radius:10px;">
+                            <p>🔥 {cals:.0f} kcal | 💪 {prot:.0f}g proteína | ⏱️ {r['readyInMinutes']} min</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("No encontré recetas con eso. Intenta otros ingredientes.")
+        except:
+            st.error("Error con Spoonacular. Revisa la API key.")
 
 st.sidebar.markdown("---")
-st.sidebar.caption(f"☁️🐈 Cloud.Cat v3.0 - {datetime.now().year}")
+st.sidebar.caption(f"Recetario Azul v2.0 - {datetime.now().year}")
