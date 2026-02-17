@@ -1,144 +1,152 @@
 import streamlit as st
 import requests
-import json
 from datetime import datetime
 
-# --- CONFIGURACIÓN DE PÁGINA ---
+# --- CONFIGURACIÓN ---
 st.set_page_config(
-    page_title="Cloud.Cat Fitness & Music",
+    page_title="Cloud.Cat Fit & Music",
     page_icon="☁️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # --- ESTILOS ---
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #0e1117;
-        color: #ffffff;
+    .stApp { background-color: #121212; color: #ffffff; }
+    .user-badge {
+        background: linear-gradient(90deg, #e94560, #0f3460);
+        padding: 10px 20px;
+        border-radius: 20px;
+        color: white;
+        font-weight: bold;
+        text-align: center;
     }
     .recipe-card {
         background-color: #1e2130;
         padding: 20px;
         border-radius: 15px;
         border-left: 5px solid #00d4ff;
-        margin-bottom: 20px;
+        margin: 10px 0;
     }
-    .nutrient-badge {
-        background-color: #262730;
-        padding: 5px 10px;
-        border-radius: 8px;
-        font-size: 0.8em;
-        margin-right: 5px;
-    }
-    .spotify-btn {
-        background: linear-gradient(90deg, #1DB954, #191414);
-        color: white !important;
-        text-align: center;
-        padding: 10px;
-        border-radius: 20px;
-        text-decoration: none;
-        display: block;
-        margin-top: 10px;
+    .music-card {
+        background: linear-gradient(135deg, #1DB954, #191414);
+        padding: 20px;
+        border-radius: 15px;
+        color: white;
+        margin: 10px 0;
     }
     </style>
 """, unsafe_allow_html=True)
 
+# --- SIDEBAR: USUARIO ---
+st.sidebar.header("👤 ¿Quién está usando la app?")
+user = st.sidebar.selectbox("", ["Azul", "Alice"], index=0)
+st.sidebar.markdown(f"<div class='user-badge'>☁️🐈 Hola {user}!</div>", unsafe_allow_html=True)
+
 # --- TÍTULO ---
-st.title("☁️🐈 Cloud.Cat Fitness & Music")
-st.markdown("### *Comida saludable y buena música para Azul y Alice*")
+st.title(f"☁️🐈 Cloud.Cat App para {user}")
 
-# --- SIDEBAR: CONFIGURACIÓN Y MOOD ---
-st.sidebar.header("🎯 Tus Preferencias")
+# Tabs: Recetas y Música
+tab1, tab2 = st.tabs(["🥗 Recetas Fit", "🎵 Solo Música"])
 
-# Obtener API Key de Secrets
-try:
-    SPOON_KEY = st.secrets["SPOONACULAR_API_KEY"]
-except:
-    st.sidebar.warning("⚠️ Falta configurar API Key en Secrets")
-    SPOON_KEY = None
-
-mood = st.sidebar.selectbox(
-    "¿Qué vibra tienes hoy?",
-    ["Fitness/Motivado", "Relajado/Zen", "Cena Romántica", "Gaming/Rápido"],
-    index=0
-)
-
-st.sidebar.markdown("---")
-st.sidebar.header("🛒 ¿Qué hay en casa?")
-ingredients_input = st.sidebar.text_area("Lista tus ingredientes (separados por coma):", placeholder="Ej: pollo, brócoli, espinaca")
-
-# --- LÓGICA DE BÚSQUEDA ---
-def search_healthy_recipes(query):
-    if not SPOON_KEY: return None
-    url = f"https://api.spoonacular.com/recipes/complexSearch"
-    params = {
-        "apiKey": SPOON_KEY,
-        "query": query,
-        "number": 3,
-        "diet": "low-carb",
-        "addRecipeNutrition": "true",
-        "sort": "healthiness"
-    }
-    response = requests.get(url, params=params)
-    return response.json().get("results", [])
-
-# --- CONTENIDO PRINCIPAL ---
-if st.sidebar.button("🔍 Buscar Recetas Fit"):
-    if ingredients_input and SPOON_KEY:
-        with st.spinner("Cloud.Cat está buscando en la cocina..."):
-            recipes = search_healthy_recipes(ingredients_input)
-            
-            if recipes:
-                st.subheader(f"🥗 Top 3 Recetas Saludables con: {ingredients_input}")
-                
-                for recipe in recipes:
-                    with st.container():
-                        st.markdown(f"""
-                        <div class="recipe-card">
-                            <h2>{recipe['title']}</h2>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        col1, col2 = st.columns([1, 2])
-                        
-                        with col1:
-                            st.image(recipe['image'], use_container_width=True)
-                        
-                        with col2:
-                            # Nutrientes
-                            nutrients = recipe.get('nutrition', {}).get('nutrients', [])
-                            cals = next((n['amount'] for n in nutrients if n['name'] == 'Calories'), 0)
-                            protein = next((n['amount'] for n in nutrients if n['name'] == 'Protein'), 0)
-                            
-                            st.markdown(f"**🔥 Calorías:** {cals} kcal | **💪 Proteína:** {protein}g")
-                            st.write(f"⏱️ Listo en: {recipe['readyInMinutes']} mins")
-                            
-                            # Spotify Suggestion
-                            st.markdown("---")
-                            st.markdown("#### 🎵 Música para cocinar este plato:")
-                            
-                            if mood == "Fitness/Motivado":
-                                playlist_url = "https://open.spotify.com/playlist/7aIhHMnSsVFkVLO6NqjC2b"
-                                p_name = "Motivational Anime Gym"
-                            elif mood == "Relajado/Zen":
-                                playlist_url = "https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK"
-                                p_name = "Japanese City Pop"
-                            else:
-                                playlist_url = "https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4"
-                                p_name = "Vibes Stay"
-
-                            st.markdown(f"**Recomendación:** {p_name}")
-                            st.link_button("🎧 Escuchar en Spotify", playlist_url)
-            else:
-                st.error("No encontré recetas con esos ingredientes. ¡Prueba otros!")
-    else:
-        st.info("Escribe algunos ingredientes en la barra lateral para empezar.")
-else:
-    # Vista inicial
-    st.info("👋 ¡Hola Azul! Escribe qué tienes en el refri a la izquierda y yo haré la magia.")
+# === TAB 1: RECETAS ===
+with tab1:
+    st.header("Busca recetas saludables")
     
+    col1, col2 = st.columns(2)
+    with col1:
+        ingredients = st.text_area("🛒 ¿Qué hay en casa?", 
+                                   placeholder="Ej: pollo, brócoli, limón")
+    with col2:
+        mood_food = st.selectbox("🎭 Mood para comer:", 
+                                  ["Fitness/Motivado", "Relajado/Zen", "Cena Romántica", "Gaming"])
+    
+    if st.button("🔍 Buscar Recetas", key="food_btn"):
+        if ingredients:
+            st.success(f"Buscando recetas con: {ingredients}")
+            st.info("(Aquí aparecerán las recetas de Spoonacular)")
+            
+            # Placeholder para demo
+            st.markdown("""
+            <div class="recipe-card">
+                <h3>🍗 Pollo al Limón con Brócoli</h3>
+                <p>🔥 350 cal | 💪 40g proteína | ⏱️ 25 min</p>
+                <p>Perfecto para tu mood: <b>{}</b></p>
+            </div>
+            """.format(mood_food), unsafe_allow_html=True)
+        else:
+            st.warning("Escribe algunos ingredientes primero")
+
+# === TAB 2: SOLO MÚSICA ===
+with tab2:
+    st.header("🎵 Generador de Playlists por Mood")
+    st.write("Escoge tu vibe y te recomiendo la playlist perfecta de Spotify")
+    
+    music_mood = st.selectbox(
+        "¿Qué mood quieres musical?",
+        ["💪 Gym/Fitness", "🌙 Relajado/Chill", "💕 Romántico", 
+         "🎮 Gaming", "☕ Café Vibes", "🌅 Morning Energy"],
+        key="music_mood"
+    )
+    
+    if st.button("🎧 Generar Playlist", key="music_btn"):
+        # Diccionario de playlists según mood
+        playlists = {
+            "💪 Gym/Fitness": {
+                "name": "Motivational Anime Gym",
+                "url": "https://open.spotify.com/playlist/7aIhHMnSsVFkVLO6NqjC2b",
+                "desc": "57 tracks para romperla en el gym",
+                "icon": "💪"
+            },
+            "🌙 Relajado/Chill": {
+                "name": "Japanese City Pop",
+                "url": "https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK",
+                "desc": "250 tracks - Midnight vibes",
+                "icon": "🌙"
+            },
+            "💕 Romántico": {
+                "name": "Bachatas Aventura",
+                "url": "https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4",
+                "desc": "Romeo Santos, Prince Royce - 91 tracks",
+                "icon": "💕"
+            },
+            "🎮 Gaming": {
+                "name": "Freedom Radio",
+                "url": "https://open.spotify.com/playlist/5ase74F6CHi5XuncSIewvr",
+                "desc": "Fallout vibes - 254 tracks",
+                "icon": "🎮"
+            },
+            "☕ Café Vibes": {
+                "name": "Amelie Soundtrack",
+                "url": "https://open.spotify.com/playlist/7Gk7XMEtEwa9R9KyJkQzv2",
+                "desc": "22 tracks franceses para relajarte",
+                "icon": "☕"
+            },
+            "🌅 Morning Energy": {
+                "name": "Anime Openings",
+                "url": "https://open.spotify.com/playlist/1YA5cPIfDy3L03bGnNiDM7",
+                "desc": "Top 100 - 115 tracks para empezar el día",
+                "icon": "🌅"
+            }
+        }
+        
+        selected = playlists[music_mood]
+        
+        st.markdown(f"""
+        <div class="music-card">
+            <h2>{selected['icon']} {selected['name']}</h2>
+            <p>{selected['desc']}</p>
+            <p><b>User:</b> {user} | <b>Mood:</b> {music_mood}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.link_button("🎵 Abrir en Spotify", selected['url'], use_container_width=True)
+        
+        # Opción para crear playlist personalizada
+        st.markdown("---")
+        st.write("💡 ¿Quieres que cree una playlist personalizada para ti en Spotify?")
+        st.checkbox("Sí, créala con mi nombre de usuario", key="create_playlist")
+
 # Footer
-st.sidebar.markdown("---")
-st.sidebar.caption(f"Cloud.Cat v2.0 - {datetime.now().year}")
+st.markdown("---")
+st.caption(f"☁️🐈 Cloud.Cat v2.0 - Hecho con amor para Azul y Alice - {datetime.now().year}")
