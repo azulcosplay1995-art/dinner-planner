@@ -1,73 +1,98 @@
 import streamlit as st
 import requests
-import json
 from datetime import datetime
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(
-    page_title="Cloud.Cat Fitness & Music",
-    page_icon="☁️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- CONFIGURACIÓN ---
+st.set_page_config(page_title="Cloud.Cat Fitness & Music", page_icon="☁️", layout="wide")
 
-# --- ESTILOS ---
-st.markdown("""
+# --- SELECCIÓN DE USUARIO ---
+st.sidebar.header("👤 ¿Quién está cocinando?")
+user = st.sidebar.radio("", ["Azul", "Alice"], horizontal=True)
+
+# --- TEMAS POR USUARIO ---
+if user == "Azul":
+    # Tema oscuro azul neón
+    bg_color = "#0a0a1a"
+    text_color = "#ffffff"
+    accent = "#00d4ff"
+    accent_hover = "#00ffff"
+    card_bg = "#1a1a2e"
+    user_icon = "🎮"
+    welcome = "¡Hola Azul! ¿Qué se te antoja hoy?"
+else:
+    # Tema claro rosa pastel
+    bg_color = "#fff5f5"
+    text_color = "#333333"
+    accent = "#ff6b81"
+    accent_hover = "#ff8fa3"
+    card_bg = "#ffffff"
+    user_icon = "💕"
+    welcome = "¡Hola Alice! Vamos a cocinar algo delicioso"
+
+# --- CSS DINÁMICO ---
+st.markdown(f"""
     <style>
-    .stApp {
-        background-color: #0e1117;
-        color: #ffffff;
-    }
-    .recipe-card {
-        background-color: #1e2130;
+    .stApp {{
+        background-color: {bg_color};
+        color: {text_color};
+    }}
+    .main {{
+        background: linear-gradient(135deg, {bg_color} 0%, {card_bg} 100%);
+    }}
+    .stButton>button {{
+        background-color: {accent};
+        color: white;
+        border-radius: 20px;
+        padding: 10px 24px;
+        border: none;
+        font-weight: bold;
+    }}
+    .stButton>button:hover {{
+        background-color: {accent_hover};
+        transform: scale(1.05);
+        transition: all 0.3s;
+    }}
+    .user-badge {{
+        background-color: {accent};
+        color: white;
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+    }}
+    .recipe-card {{
+        background-color: {card_bg};
         padding: 20px;
         border-radius: 15px;
-        border-left: 5px solid #00d4ff;
+        border-left: 5px solid {accent};
         margin-bottom: 20px;
-    }
-    .spotify-btn {
-        background: linear-gradient(90deg, #1DB954, #191414);
-        color: white !important;
-        text-align: center;
-        padding: 10px;
-        border-radius: 20px;
-        text-decoration: none;
-        display: block;
-        margin-top: 10px;
-    }
-    .user-badge {
-        background-color: #e94560;
-        color: white;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-weight: bold;
-    }
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }}
+    h1, h2, h3 {{
+        color: {accent} !important;
+    }}
+    .stTextArea>div>div>textarea {{
+        background-color: {card_bg};
+        color: {text_color};
+        border: 2px solid {accent};
+        border-radius: 10px;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- USUARIO ---
-st.sidebar.header("👤 ¿Quién está usando?")
-user = st.sidebar.radio("Selecciona usuario:", ["Azul", "Alice"])
-
-if user == "Alice":
-    st.sidebar.markdown("<span class='user-badge'>Hola Alice 💕</span>", unsafe_allow_html=True)
-    welcome_msg = "¡Hola Alice! Vamos a cocinar algo delicioso"
-else:
-    st.sidebar.markdown("<span class='user-badge'>Hola Azul 🎮</span>", unsafe_allow_html=True)
-    welcome_msg = "¡Hola Azul! ¿Qué se te antoja hoy?"
-
-# --- TÍTULO ---
-st.title("☁️🐈 Cloud.Cat Fitness & Music")
-st.markdown(f"### *{welcome_msg}*")
+# --- HEADER ---
+st.sidebar.markdown(f"<div class='user-badge'>{user_icon} Modo {user}</div>", unsafe_allow_html=True)
+st.title(f"☁️🐈 Cloud.Cat - Cocina {user}")
+st.markdown(f"### *{welcome}*")
 
 # --- TABS ---
-tab_recetas, tab_musica = st.tabs(["🥗 Recetas", "🎵 Música"])
+tab1, tab2 = st.tabs(["🥗 Recetas", "🎵 Música"])
 
-# --- TAB RECETAS ---
-with tab_recetas:
+with tab1:
     st.markdown("---")
     
-    # Obtener API Key de Secrets
+    # API Key
     try:
         SPOON_KEY = st.secrets["SPOONACULAR_API_KEY"]
     except:
@@ -77,7 +102,7 @@ with tab_recetas:
     
     with col1:
         st.header("🛒 Ingredientes")
-        ingredients_input = st.text_area(
+        ingredients = st.text_area(
             "¿Qué hay en el refri?",
             placeholder="Ej: pollo, brócoli, espinaca",
             help="Escribe ingredientes separados por coma"
@@ -89,112 +114,60 @@ with tab_recetas:
             ["Fitness/Motivado", "Relajado/Zen", "Cena Romántica", "Gaming/Rápido"]
         )
         
-        search_btn = st.button("🔍 Buscar Recetas Fit", use_container_width=True)
-    
-    with col2:
-        if search_btn and ingredients_input and SPOON_KEY:
-            with st.spinner("Cloud.Cat está cocinando..."):
-                url = "https://api.spoonacular.com/recipes/complexSearch"
-                params = {
-                    "apiKey": SPOON_KEY,
-                    "query": ingredients_input,
-                    "number": 3,
-                    "diet": "low-carb",
-                    "addRecipeNutrition": "true"
-                }
-                response = requests.get(url, params=params)
-                recipes = response.json().get("results", [])
-                
-                if recipes:
-                    for recipe in recipes:
-                        with st.container():
-                            st.markdown(f"""
-                            <div class="recipe-card">
-                                <h3>{recipe['title']}</h3>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            c1, c2 = st.columns([1, 2])
-                            with c1:
-                                st.image(recipe['image'], use_container_width=True)
-                            with c2:
+        if st.button("🔍 Buscar Recetas Fit", use_container_width=True):
+            if ingredients and SPOON_KEY:
+                with st.spinner("Cloud.Cat está cocinando..."):
+                    url = "https://api.spoonacular.com/recipes/complexSearch"
+                    params = {
+                        "apiKey": SPOON_KEY,
+                        "query": ingredients,
+                        "number": 3,
+                        "diet": "low-carb",
+                        "addRecipeNutrition": "true"
+                    }
+                    res = requests.get(url, params=params)
+                    recipes = res.json().get("results", [])
+                    
+                    if recipes:
+                        for recipe in recipes:
+                            with col2:
                                 nutrients = recipe.get('nutrition', {}).get('nutrients', [])
                                 cals = next((n['amount'] for n in nutrients if n['name'] == 'Calories'), 0)
                                 protein = next((n['amount'] for n in nutrients if n['name'] == 'Protein'), 0)
                                 
-                                st.write(f"🔥 **{cals}** kcal")
-                                st.write(f"💪 **{protein}**g proteína")
-                                st.write(f"⏱️ {recipe['readyInMinutes']} mins")
-                else:
-                    st.info("No encontré recetas. Intenta otros ingredientes.")
-        else:
-            st.info("👈 Escribe ingredientes y click en Buscar")
+                                st.markdown(f"""
+                                <div class="recipe-card">
+                                    <h3>{recipe['title']}</h3>
+                                    <img src="{recipe['image']}" style="width:100%; border-radius:10px;">
+                                    <p>🔥 <b>{cals:.0f}</b> kcal | 💪 <b>{protein:.0f}</b>g proteína | ⏱️ {recipe['readyInMinutes']} min</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                    else:
+                        st.info("No encontré recetas. Intenta otros ingredientes.")
+            else:
+                st.warning("Escribe ingredientes primero")
 
-# --- TAB MÚSICA ---
-with tab_musica:
+with tab2:
     st.markdown("---")
-    st.header("🎵 Playlist Generada por Cloud.Cat")
+    st.header("🎵 Playlist Recomendada")
     
     music_mood = st.selectbox(
         "¿Para qué momento?",
-        ["Entrenamiento 💪", "Cocinando 🥘", "Cita romántica 💕", "Relajándose 🌙", "Gaming 🎮", "Trabajando 💻"],
-        key="music_mood"
+        ["Entrenamiento 💪", "Cocinando 🥘", "Cita romántica 💕", "Relajándose 🌙", "Gaming 🎮"]
     )
     
-    if st.button("🎧 Generar Playlist", use_container_width=True):
-        playlists = {
-            "Entrenamiento 💪": {
-                "name": "Motivational Anime Gym",
-                "url": "https://open.spotify.com/playlist/7aIhHMnSsVFkVLO6NqjC2b",
-                "desc": "57 tracks para darlo todo 💪",
-                "reason": "Alta energía, perfecta para sudar"
-            },
-            "Cocinando 🥘": {
-                "name": "Japanese City Pop",
-                "url": "https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK",
-                "desc": "250 tracks relajados 🌙",
-                "reason": "Ritmo suave para concentrarte en la cocina"
-            },
-            "Cita romántica 💕": {
-                "name": "Bachatas Aventura",
-                "url": "https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4",
-                "desc": "Romeo Santos, Prince Royce 💕",
-                "reason": "Romántica y bailable, ideal para compartir"
-            },
-            "Relajándose 🌙": {
-                "name": "Playlist de vibes stay",
-                "url": "https://open.spotify.com/playlist/0J8eyNXyad9pdcM9igjtrU",
-                "desc": "99 tracks chill ✨",
-                "reason": "Para desconectar después de un día largo"
-            },
-            "Gaming 🎮": {
-                "name": "Freedom Radio",
-                "url": "https://open.spotify.com/playlist/5ase74F6CHi5XuncSIewvr",
-                "desc": "Fallout vibes - 254 tracks 🎮",
-                "reason": "Atmosférico, perfecto para inmersión"
-            },
-            "Trabajando 💻": {
-                "name": "Anime Openings",
-                "url": "https://open.spotify.com/playlist/1YA5cPIfDy3L03bGnNiDM7",
-                "desc": "Top 100 - 115 tracks 🎌",
-                "reason": "Energética pero no distractora"
-            }
-        }
-        
-        selected = playlists[music_mood]
-        
-        st.markdown(f"""
-        <div class="recipe-card">
-            <h2>🎵 {selected['name']}</h2>
-            <p>{selected['desc']}</p>
-            <p><i>💡 Por qué esta playlist: {selected['reason']}</i></p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.link_button("🎧 Abrir en Spotify", selected['url'])
-        
-        st.success(f"¡Playlist elegida para {user}! Disfruta 🎶")
+    playlists = {
+        "Entrenamiento 💪": ("https://open.spotify.com/playlist/7aIhHMnSsVFkVLO6NqjC2b", "Motivational Anime"),
+        "Cocinando 🥘": ("https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK", "Japanese City Pop"),
+        "Cita romántica 💕": ("https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4", "Bachatas Aventura"),
+        "Relajándose 🌙": ("https://open.spotify.com/playlist/0J8eyNXyad9pdcM9igjtrU", "Vibes Stay"),
+        "Gaming 🎮": ("https://open.spotify.com/playlist/5ase74F6CHi5XuncSIewvr", "Freedom Radio")
+    }
+    
+    if st.button("🎧 Escuchar Playlist", use_container_width=True):
+        url, name = playlists[music_mood]
+        st.markdown(f"<h3 style='color:{accent}'>🎵 {name}</h3>", unsafe_allow_html=True)
+        st.link_button("Abrir en Spotify", url)
 
-# --- FOOTER ---
 st.sidebar.markdown("---")
-st.sidebar.caption(f"☁️🐈 Cloud.Cat v2.1 - {datetime.now().year}")
+st.sidebar.caption(f"☁️🐈 Cloud.Cat v3.0 - {datetime.now().year}")
