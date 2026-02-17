@@ -1,197 +1,144 @@
 import streamlit as st
+import requests
 import json
-from pathlib import Path
 from datetime import datetime
 
+# --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
-    page_title="Cloud.Cat Dinner Planner",
+    page_title="Cloud.Cat Fitness & Music",
     page_icon="☁️",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Dark theme styling
+# --- ESTILOS ---
 st.markdown("""
     <style>
     .stApp {
-        background-color: #1a1a2e;
-        color: #eee;
-    }
-    .main {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    }
-    .sidebar .sidebar-content {
-        background-color: #0f3460;
-    }
-    h1 {
-        color: #e94560;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    .stButton>button {
-        background-color: #e94560;
-        color: white;
-        border-radius: 20px;
-        padding: 10px 24px;
-        border: none;
-    }
-    .stButton>button:hover {
-        background-color: #ff6b6b;
+        background-color: #0e1117;
+        color: #ffffff;
     }
     .recipe-card {
-        background-color: rgba(255,255,255,0.1);
-        border-radius: 15px;
+        background-color: #1e2130;
         padding: 20px;
-        margin: 10px 0;
-        border-left: 5px solid #e94560;
+        border-radius: 15px;
+        border-left: 5px solid #00d4ff;
+        margin-bottom: 20px;
     }
-    .spotify-link {
-        background: linear-gradient(90deg, #1DB954, #1ed760);
-        padding: 15px;
-        border-radius: 10px;
+    .nutrient-badge {
+        background-color: #262730;
+        padding: 5px 10px;
+        border-radius: 8px;
+        font-size: 0.8em;
+        margin-right: 5px;
+    }
+    .spotify-btn {
+        background: linear-gradient(90deg, #1DB954, #191414);
+        color: white !important;
         text-align: center;
-        margin: 10px 0;
+        padding: 10px;
+        border-radius: 20px;
+        text-decoration: none;
+        display: block;
+        margin-top: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Title
-st.title("☁️🐈 Cloud.Cat Dinner Planner")
-st.markdown("*Powered by Azul's Spotify & Cloud.Cat AI*")
-st.markdown("---")
+# --- TÍTULO ---
+st.title("☁️🐈 Cloud.Cat Fitness & Music")
+st.markdown("### *Comida saludable y buena música para Azul y Alice*")
 
-# Data
-RECIPES = {
-    "romantic": {
-        "name": "Pasta Alfredo",
-        "time": "20 min",
-        "difficulty": "Fácil",
-        "ingredients": ["400g pasta", "250ml crema", "100g queso parmesano", "50g mantequilla", "4 dientes ajo", "Perejil fresco"],
-        "notes": "Favorita de Alice 💕",
-        "spotify": {
-            "name": "Bachatas Aventura",
-            "url": "https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4",
-            "desc": "Romeo Santos, Prince Royce - 91 tracks 💕"
-        }
-    },
-    "party": {
-        "name": "Arepas de Huevo",
-        "time": "30 min",
-        "difficulty": "Medio",
-        "ingredients": ["2 tazas harina de maíz", "4 huevos", "1 taza agua tibia", "Sal", "Aceite para freír"],
-        "notes": "Perfectas para parranda 🎉",
-        "spotify": {
-            "name": "Salsa Vieja",
-            "url": "https://open.spotify.com/playlist/2qcBXdn2HfxV1dPfHQ2UPE",
-            "desc": "60s-80s - 599 tracks 💃"
-        }
-    },
-    "chill": {
-        "name": "Sopa de Verduras",
-        "time": "25 min",
-        "difficulty": "Fácil",
-        "ingredients": ["2 zanahorias", "2 papas", "1 calabacín", "1 cebolla", "4 tazas caldo", "Cilantro"],
-        "notes": "Noche relajada en casa 🌙",
-        "spotify": {
-            "name": "Japanese City Pop",
-            "url": "https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK",
-            "desc": "250 tracks - Midnight vibes ✨"
-        }
-    },
-    "gaming": {
-        "name": "Pizza Casera",
-        "time": "45 min",
-        "difficulty": "Medio",
-        "ingredients": ["300g harina", "150ml agua", "10g levadura", "Salsa de tomate", "Queso mozarella", "Pepperoni"],
-        "notes": "Noche de juegos con Alice 🎮",
-        "spotify": {
-            "name": "Freedom Radio",
-            "url": "https://open.spotify.com/playlist/5ase74F6CHi5XuncSIewvr",
-            "desc": "Fallout vibes - 254 tracks 🎮"
-        }
-    },
-    "focus": {
-        "name": "Salmón a la Plancha",
-        "time": "30 min",
-        "difficulty": "Medio",
-        "ingredients": ["2 filetes de salmón", "Limón", "Eneldo fresco", "Espárragos", "Aceite de oliva", "Sal y pimienta"],
-        "notes": "Cena ligera para trabajar 💻",
-        "spotify": {
-            "name": "Anime Openings",
-            "url": "https://open.spotify.com/playlist/1YA5cPIfDy3L03bGnNiDM7",
-            "desc": "Top 100 - 115 tracks 🎌"
-        }
-    }
-}
+# --- SIDEBAR: CONFIGURACIÓN Y MOOD ---
+st.sidebar.header("🎯 Tus Preferencias")
 
-# Sidebar
-st.sidebar.header("🎭 Selecciona el Mood")
+# Obtener API Key de Secrets
+try:
+    SPOON_KEY = st.secrets["SPOONACULAR_API_KEY"]
+except:
+    st.sidebar.warning("⚠️ Falta configurar API Key en Secrets")
+    SPOON_KEY = None
+
 mood = st.sidebar.selectbox(
-    "¿Qué ambiente buscas?",
-    ["romantic", "party", "chill", "gaming", "focus"],
-    format_func=lambda x: {
-        "romantic": "💕 Romántico",
-        "party": "🎉 Fiesta/Parranda",
-        "chill": "🌙 Relajado",
-        "gaming": "🎮 Gaming Night",
-        "focus": "💻 Productivo"
-    }[x]
+    "¿Qué vibra tienes hoy?",
+    ["Fitness/Motivado", "Relajado/Zen", "Cena Romántica", "Gaming/Rápido"],
+    index=0
 )
 
 st.sidebar.markdown("---")
-st.sidebar.header("🎵 Spotify Integration")
+st.sidebar.header("🛒 ¿Qué hay en casa?")
+ingredients_input = st.sidebar.text_area("Lista tus ingredientes (separados por coma):", placeholder="Ej: pollo, brócoli, espinaca")
 
-# Main content
-if mood:
-    recipe = RECIPES[mood]
-    
-    st.subheader(f"🍽️ {recipe['name']}")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("⏱️ Tiempo", recipe['time'])
-    with col2:
-        st.metric("📊 Dificultad", recipe['difficulty'])
-    with col3:
-        st.write(f"**{recipe['notes']}**")
-    
-    st.markdown("---")
-    
-    st.subheader("📝 Ingredientes:")
-    for ing in recipe['ingredients']:
-        st.markdown(f"• {ing}")
-    
-    st.markdown("---")
-    
-    # Spotify section
-    st.subheader("🎵 Playlist Recomendada:")
-    spotify = recipe['spotify']
-    
-    st.markdown(f"""
-    <div class='spotify-link'>
-        <h3 style='color: white; margin: 0;'>{spotify['name']}</h3>
-        <p style='color: white; margin: 5px 0;'>{spotify['desc']}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🎧 Abrir en Spotify", use_container_width=True):
-        st.markdown(f"""
-        <script>
-            window.open('{spotify['url']}', '_blank');
-        </script>
-        """, unsafe_allow_html=True)
-        st.success(f"¡Disfruta {spotify['name']} mientras cocinas!")
-        st.markdown(f"[🔗 Abrir Spotify]({spotify['url']})")
-    
-    st.markdown("---")
-    
-    # Save recipe button
-    if st.button("💾 Guardar Receta en Favoritos"):
-        st.success(f"¡{recipe['name']} guardada en favoritos! 💕")
+# --- LÓGICA DE BÚSQUEDA ---
+def search_healthy_recipes(query):
+    if not SPOON_KEY: return None
+    url = f"https://api.spoonacular.com/recipes/complexSearch"
+    params = {
+        "apiKey": SPOON_KEY,
+        "query": query,
+        "number": 3,
+        "diet": "low-carb",
+        "addRecipeNutrition": "true",
+        "sort": "healthiness"
+    }
+    response = requests.get(url, params=params)
+    return response.json().get("results", [])
 
-st.sidebar.markdown("---")
-st.sidebar.caption("☁️🐈 Made with love by Cloud.Cat")
-st.sidebar.caption(f"Ultima actualización: {datetime.now().strftime('%Y-%m-%d')}")
+# --- CONTENIDO PRINCIPAL ---
+if st.sidebar.button("🔍 Buscar Recetas Fit"):
+    if ingredients_input and SPOON_KEY:
+        with st.spinner("Cloud.Cat está buscando en la cocina..."):
+            recipes = search_healthy_recipes(ingredients_input)
+            
+            if recipes:
+                st.subheader(f"🥗 Top 3 Recetas Saludables con: {ingredients_input}")
+                
+                for recipe in recipes:
+                    with st.container():
+                        st.markdown(f"""
+                        <div class="recipe-card">
+                            <h2>{recipe['title']}</h2>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        col1, col2 = st.columns([1, 2])
+                        
+                        with col1:
+                            st.image(recipe['image'], use_container_width=True)
+                        
+                        with col2:
+                            # Nutrientes
+                            nutrients = recipe.get('nutrition', {}).get('nutrients', [])
+                            cals = next((n['amount'] for n in nutrients if n['name'] == 'Calories'), 0)
+                            protein = next((n['amount'] for n in nutrients if n['name'] == 'Protein'), 0)
+                            
+                            st.markdown(f"**🔥 Calorías:** {cals} kcal | **💪 Proteína:** {protein}g")
+                            st.write(f"⏱️ Listo en: {recipe['readyInMinutes']} mins")
+                            
+                            # Spotify Suggestion
+                            st.markdown("---")
+                            st.markdown("#### 🎵 Música para cocinar este plato:")
+                            
+                            if mood == "Fitness/Motivado":
+                                playlist_url = "https://open.spotify.com/playlist/7aIhHMnSsVFkVLO6NqjC2b"
+                                p_name = "Motivational Anime Gym"
+                            elif mood == "Relajado/Zen":
+                                playlist_url = "https://open.spotify.com/playlist/3s1lcoN41cKKlLZFezjcSK"
+                                p_name = "Japanese City Pop"
+                            else:
+                                playlist_url = "https://open.spotify.com/playlist/1nh8MuQtWwEhzqehm8MaO4"
+                                p_name = "Vibes Stay"
 
+                            st.markdown(f"**Recomendación:** {p_name}")
+                            st.link_button("🎧 Escuchar en Spotify", playlist_url)
+            else:
+                st.error("No encontré recetas con esos ingredientes. ¡Prueba otros!")
+    else:
+        st.info("Escribe algunos ingredientes en la barra lateral para empezar.")
+else:
+    # Vista inicial
+    st.info("👋 ¡Hola Azul! Escribe qué tienes en el refri a la izquierda y yo haré la magia.")
+    
 # Footer
-st.markdown("---")
-st.markdown("<center>☁️🐈 <i>Tu asistente personal para cocina y música</i></center>", unsafe_allow_html=True)
+st.sidebar.markdown("---")
+st.sidebar.caption(f"Cloud.Cat v2.0 - {datetime.now().year}")
