@@ -1,6 +1,63 @@
 import streamlit as st
 import requests
 from datetime import datetime
+from difflib import get_close_matches
+
+# --- AUTOCORRECCIÓN DE INGREDIENTES ---
+VOCABULARIO = {
+    "pollo": ["polllo", "pollo", "poli"],
+    "brócoli": ["brocoli", "brocoli", "broculi"],
+    "espárragos": ["esparragos", "esparagos"],
+    "carne": ["carne", "carne molida", "carné"],
+    "molida": ["molida", "molido"],
+    "queso": ["queso", "quesito"],
+    "pescado": ["pescado", "pescao", "pezcado"],
+    "arroz": ["arro", "arroz", "rose"],
+    "papa": ["papa", "patata"],
+    "cebolla": ["cebolla", "sebolla"],
+    "ajo": ["ajo", "axo"],
+    "tomate": ["tomate", "tomat"],
+    "espinaca": ["espinaca", "espinaka"]
+}
+
+def autocorregir(texto):
+    """Corrige errores ortográficos comunes"""
+    palabras = [p.strip().lower() for p in texto.split(",")]
+    corregidas = []
+    correcciones = []
+    
+    for palabra in palabras:
+        palabra_limpia = palabra.strip()
+        if not palabra_limpia:
+            continue
+            
+        # Buscar en vocabulario
+        corregida = palabra_limpia
+        for correcta, variantes in VOCABULARIO.items():
+            if palabra_limpia in variantes:
+                if palabra_limpia != correcta:
+                    correcciones.append(f"'{palabra_limpia}' → '{correcta}'")
+                corregida = correcta
+                break
+        
+        # Si no encontró, usar fuzzy matching
+        if corregida == palabra_limpia:
+            todas_palabras = []
+            for v in VOCABULARIO.values():
+                todas_palabras.extend(v)
+            
+            matches = get_close_matches(palabra_limpia, todas_palabras, n=1, cutoff=0.7)
+            if matches and matches[0] != palabra_limpia:
+                # Encontrar la forma correcta
+                for correcta, variantes in VOCABULARIO.items():
+                    if matches[0] in variantes or matches[0] == correcta:
+                        correcciones.append(f"'{palabra_limpia}' → '{correcta}'")
+                        corregida = correcta
+                        break
+        
+        corregidas.append(corregida)
+    
+    return ", ".join(corregidas), correcciones
 
 st.set_page_config(page_title="Recetario Azul", page_icon="👨‍🍳", layout="wide")
 
@@ -119,9 +176,17 @@ if st.session_state.selected_ingredientes:
         st.session_state.selected_ingredientes = []
         st.rerun()
 
-# --- TEXTO EXTRA ---
+# --- TEXTO EXTRA CON AUTOCORRECCIÓN ---
 st.markdown("---")
-texto_extra = st.text_input("⌨️ ¿Algo más?", placeholder="Ej: quinoa, especias...")
+raw_texto = st.text_input("⌨️ ¿Algo más?", placeholder="Ej: polllo, broculi, carne molida...", 
+                          help="Escribe y yo corrijo automáticamente para Alice 💕")
+
+if raw_texto:
+    texto_extra, correcciones = autocorregir(raw_texto)
+    if correcciones:
+        st.success(f"✨ Corregí: {', '.join(correcciones)}")
+else:
+    texto_extra = ""
 
 # --- BUSCAR ---
 mood = st.selectbox("🎯 Vibe", ["Fit/Gym 💪", "Romántica 💕", "Rápida ⚡", "Relax 🌿"])
